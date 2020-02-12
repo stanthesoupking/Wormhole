@@ -1,0 +1,18 @@
+{
+  "name": "wormhole",
+  "version": "0.1.0",
+  "description": "file transfer server",
+  "main": "src/index.js",
+  "author": "Stanley Fuller",
+  "license": "MIT",
+  "scripts": {
+    "start-server": "node src/server.js",
+    "dev-server": "nodemon src/server.js",
+    "start-client": "node src/client.js",
+    "dev-client": "nodemon src/client.js"
+  },
+  "dependencies": {
+    "bson": "^4.0.3",
+    "colors": "^1.4.0"
+  }
+}

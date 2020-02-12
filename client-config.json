@@ -1,0 +1,7 @@
+{
+    "username": "default",
+    "password": "changeme",
+    "strictSSL": false,
+    "verbose": true,
+    "dataDirectory": "./client-data"
+}

@@ -1,0 +1,13 @@
+{
+    "host": "localhost",
+    "port": 8585,
+    "verbose": true,
+    "key": "certs/private-key.pem",
+    "cert": "certs/public-cert.pem",
+    "users": [{
+        "username": "default",
+        "password": "changeme",
+        "dataDirectory": "./server-data"
+    }],
+    "blockSize": 16384
+}
