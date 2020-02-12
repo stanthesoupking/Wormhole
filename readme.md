@@ -38,7 +38,7 @@ Wormhole uses TLS to mitigate man-in-the-middle attacks. You must set the path t
 
 
 
-### Starting the Client
+### Starting the Server
 ```bash
 yarn start-server
 ```
