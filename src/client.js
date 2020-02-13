@@ -45,6 +45,7 @@ switch (args.command) {
         pullRepo();
         break;
     case "push":
+        pushRepo();
         break;
 }
 
@@ -142,6 +143,33 @@ async function pullRepo() {
     repo.pull(password)
         .then(() => {
             console.log("Pull complete.".green);
+            process.exit(0);
+        })
+        .catch(error => {
+            console.error(`Error: ${error.message}.`.red);
+            process.exit(1);
+        });
+}
+
+async function pushRepo() {
+    let repo = openRepository();
+    if (!repo) {
+        console.error(
+            "Error: No existing repository was found in this folder.".red
+        );
+        console.error(
+            "  To initialise a repository in this folder run 'wormhole init'"
+                .red
+        );
+        exit(1);
+    }
+
+    let password = await passwordPrompt();
+
+    console.log("Pushing to server...".cyan);
+    repo.push(password)
+        .then(() => {
+            console.log("Push complete.".green);
             process.exit(0);
         })
         .catch(error => {

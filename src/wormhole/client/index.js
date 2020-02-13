@@ -91,6 +91,15 @@ class WormholeClient {
         }
     }
 
+    pushFiles() {
+        if (this.signedIn) {
+            this.trace("Pushing files to server...".cyan);
+            return this.socket.pushFiles();
+        } else {
+            throw Error("Cannot push to server when not signed in.");
+        }
+    }
+
     close() {
         if (this.signedIn) {
             return this.socket.close();

@@ -23,6 +23,12 @@ function WormholeSocketDefaultDataHandler(data) {
         }
     } else {
         switch (message.messageType) {
+            case MessageType.PULL_FINISHED:
+                this.onPushComplete();
+                break;
+            case MessageType.REQUEST_PULL:
+                this.pullFiles();
+                break;
             case MessageType.FETCH_FOLDER_LIST:
                 this.pushFolderList();
                 break;
@@ -50,9 +56,12 @@ class WormholeSocket {
         this.user = options.user;
         this.options = options;
         this.setDataHandler(WormholeSocketDefaultDataHandler);
+        this.options.blockSize = 16384;
 
         this.selectedRepository = null;
         this.syncedFolder = null;
+        this.onPullComplete = () => { };
+        this.onPushComplete = () => { };
         // this.syncedFolder = new SyncedFolder(this.options.path, [
         //     ".wormhole-repo",
         // ]);
@@ -162,6 +171,16 @@ class WormholeSocket {
 
     pullFiles() {
         return new Promise((resolve, reject) => {
+            this.onPullComplete = () => {
+                this.socket.write(BSON.serialize({
+                    messageType: MessageType.PULL_FINISHED
+                }), () => {
+                    resolve(true);
+                });
+
+                this.onPullComplete = () => { };
+            }
+
             this.trace(`Fetching folder list from ${this.clientName}.`.cyan);
             this.socket.write(
                 BSON.serialize({
@@ -270,6 +289,10 @@ class WormholeSocket {
                                 }
                             }
 
+                            if (toFetch.length === 0) {
+                                this.onPullComplete();
+                            }
+
                             let fetchNextFileInfo = () => {
                                 if (toFetch.length > 0) {
                                     let currentFile = toFetch.pop();
@@ -289,6 +312,7 @@ class WormholeSocket {
 
                                     this.setDataHandler(fetchInfoHandler);
                                 } else {
+                                    this.onPullComplete();
                                     this.setDataHandler(
                                         WormholeSocketDefaultDataHandler
                                     );
@@ -382,8 +406,14 @@ class WormholeSocket {
 
     pushFiles() {
         return new Promise((resolve, reject) => {
-            console.log("Pushing");
-            resolve(true);
+            this.onPushComplete = () => {
+                this.onPushComplete = () => { };
+                resolve(true);
+            };
+
+            this.socket.write(BSON.serialize({
+                messageType: MessageType.REQUEST_PULL
+            }));
         });
     }
 

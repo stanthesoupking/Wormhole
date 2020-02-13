@@ -56,7 +56,40 @@ class WormholeRepository {
                 });
         });
     }
+
+    push(password) {
+        return new Promise(async (resolve, reject) => {
+            let user = {
+                username: this.settings.username,
+                password,
+            };
+
+            let options = {
+                host: this.settings.host,
+                port: this.settings.port,
+                path: this.path,
+                // TODO: Add these options to the repo's dot file or function args
+                strictSSL: false,
+                verbose: true,
+            };
+
+            let client = new WormholeClient(user, options);
+            client
+                .connect()
+                .then(async () => {
+                    await client.selectRepository(this.getName());
+                    await client.pushFiles();
+                    await client.close();
+                    resolve(true);
+                })
+                .catch(err => {
+                    reject(err);
+                });
+        });
+    }
 }
+
+
 
 function openRepository(path = process.cwd()) {
     if (fs.existsSync(path + "/" + REPO_FILE)) {
