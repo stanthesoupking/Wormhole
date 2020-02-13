@@ -248,139 +248,23 @@ class WormholeSocket {
                     this.setDataHandler(data => {
                         let message = BSON.deserialize(data);
 
-                        if (
-                            message.messageType !==
-                            MessageType.FETCH_FILE_LIST_RESPONSE
-                        ) {
-                            console.log(message);
-                            this.trace(
-                                `Failed fetching file list from ${this.clientName}.`
-                                    .red
-                            );
-                            this.setDataHandler(
-                                WormholeSocketDefaultDataHandler
-                            );
-                        } else {
-                            this.trace(
-                                `Recieved file list from ${this.clientName}.`
-                                    .green
-                            );
-                            this.setDataHandler(
-                                WormholeSocketDefaultDataHandler
-                            );
-
-                            // Remove files not in list
-                            let toRemove = Object.keys(
-                                this.syncedFolder.getFileList()
-                            ).filter(
-                                file => message.payload.fileList[file] == null
-                            );
-
-                            this.syncedFolder.removeFiles(toRemove);
-
-                            let toFetch = [];
-
-                            for (let relativePath of Object.keys(
-                                message.payload.fileList
-                            )) {
-                                let clientFile =
-                                    message.payload.fileList[relativePath];
-                                let existingFile = this.syncedFolder.getFile(
-                                    relativePath
-                                );
-
-                                new Date().toLocaleString();
-                                if (existingFile != null) {
-                                    // Replace file if old one already exists
-                                    if (
-                                        existingFile.modificationTime.getTime() !==
-                                            clientFile.modificationTime.getTime() ||
-                                        existingFile.size !== clientFile.size
-                                    ) {
-                                        this.syncedFolder.removeFile(
-                                            relativePath
-                                        );
-                                        this.syncedFolder.addFile(
-                                            relativePath,
-                                            clientFile
-                                        );
-                                        toFetch.push(relativePath);
-                                    }
-                                } else {
-                                    toFetch.push(relativePath);
-                                    this.syncedFolder.addFile(
-                                        relativePath,
-                                        clientFile
-                                    );
-                                }
-                            }
-
-                            if (toFetch.length === 0) {
-                                this.onPullComplete();
-                            }
-
-                            let fetchNextFileInfo = () => {
-                                if (toFetch.length > 0) {
-                                    let currentFile = toFetch.pop();
-                                    this.trace(
-                                        `Fetching file info for '${currentFile}'.`
-                                            .cyan
-                                    );
-                                    this.socket.write(
-                                        BSON.serialize({
-                                            messageType:
-                                                MessageType.FETCH_FILE_INFO,
-                                            payload: {
-                                                path: currentFile,
-                                            },
-                                        })
-                                    );
-
-                                    this.setDataHandler(fetchInfoHandler);
-                                } else {
-                                    this.onPullComplete();
-                                    this.setDataHandler(
-                                        WormholeSocketDefaultDataHandler
-                                    );
-                                    //resolve(true);
-                                }
-                            };
-
-                            let state = {};
-                            let fetchFileDataHandler = data => {
-                                this.syncedFolder.appendToFile(
-                                    state.currentFile,
-                                    state.fd,
-                                    data
-                                );
-
-                                state.currentBlock += 1;
-
-                                if (state.currentBlock >= state.totalBlocks) {
-                                    this.trace(
-                                        `All blocks recieved for file '${state.currentFile}'.`
-                                            .green
-                                    );
-                                    this.syncedFolder.closeFile(
-                                        state.currentFile,
-                                        state.fd
-                                    );
-                                    this.syncedFolder.correctModificationTime(
-                                        state.currentFile
-                                    );
-                                    fetchNextFileInfo();
-                                }
-                            };
-
-                            let fetchInfoHandler = data => {
-                                let message = BSON.deserialize(data);
+                        let buffer = Buffer.alloc(message.payload.size);
+                        let currentBlock = 0;
+                        let totalBlocks = Math.ceil(message.payload.size / message.payload.blockSize);
+                        let blockSize = message.payload.blockSize;
+                        this.setDataHandler(data => {
+                            currentBlock += 1;
+                            data.copy(buffer, blockSize * (currentBlock - 1));
+                            if (currentBlock === totalBlocks) {
+                                let message = BSON.deserialize(buffer);
 
                                 if (
                                     message.messageType !==
-                                    MessageType.FETCH_FILE_INFO_RESPONSE
+                                    MessageType.FETCH_FILE_LIST_RESPONSE
                                 ) {
+                                    console.log(message);
                                     this.trace(
-                                        `Failed fetching file info from ${this.clientName}.`
+                                        `Failed fetching file list from ${this.clientName}.`
                                             .red
                                     );
                                     this.setDataHandler(
@@ -388,42 +272,170 @@ class WormholeSocket {
                                     );
                                 } else {
                                     this.trace(
-                                        `Recieved file info for '${message.payload.path}' from ${this.clientName}.`
+                                        `Recieved file list from ${this.clientName}.`
                                             .green
                                     );
-
-                                    this.trace(
-                                        `Fetching file data for '${message.payload.path}' from ${this.clientName}`
-                                            .cyan
+                                    this.setDataHandler(
+                                        WormholeSocketDefaultDataHandler
                                     );
 
-                                    state = {
-                                        currentBlock: 0,
-                                        totalBlocks:
-                                            message.payload.stats.blockCount,
-                                        currentFile: message.payload.path,
-                                        fd: this.syncedFolder.openFile(
-                                            message.payload.path,
-                                            "a"
-                                        ),
+                                    // Remove files not in list
+                                    let toRemove = Object.keys(
+                                        this.syncedFolder.getFileList()
+                                    ).filter(
+                                        file => message.payload.fileList[file] == null
+                                    );
+
+                                    this.syncedFolder.removeFiles(toRemove);
+
+                                    let toFetch = [];
+
+                                    for (let relativePath of Object.keys(
+                                        message.payload.fileList
+                                    )) {
+                                        let clientFile =
+                                            message.payload.fileList[relativePath];
+                                        let existingFile = this.syncedFolder.getFile(
+                                            relativePath
+                                        );
+
+                                        new Date().toLocaleString();
+                                        if (existingFile != null) {
+                                            // Replace file if old one already exists
+                                            if (
+                                                existingFile.modificationTime.getTime() !==
+                                                clientFile.modificationTime.getTime() ||
+                                                existingFile.size !== clientFile.size
+                                            ) {
+                                                this.syncedFolder.removeFile(
+                                                    relativePath
+                                                );
+                                                this.syncedFolder.addFile(
+                                                    relativePath,
+                                                    clientFile
+                                                );
+                                                toFetch.push(relativePath);
+                                            }
+                                        } else {
+                                            toFetch.push(relativePath);
+                                            this.syncedFolder.addFile(
+                                                relativePath,
+                                                clientFile
+                                            );
+                                        }
+                                    }
+
+                                    if (toFetch.length === 0) {
+                                        this.onPullComplete();
+                                    }
+
+                                    let fetchNextFileInfo = () => {
+                                        if (toFetch.length > 0) {
+                                            let currentFile = toFetch.pop();
+                                            this.trace(
+                                                `Fetching file info for '${currentFile}'.`
+                                                    .cyan
+                                            );
+                                            this.socket.write(
+                                                BSON.serialize({
+                                                    messageType:
+                                                        MessageType.FETCH_FILE_INFO,
+                                                    payload: {
+                                                        path: currentFile,
+                                                    },
+                                                })
+                                            );
+
+                                            this.setDataHandler(fetchInfoHandler);
+                                        } else {
+                                            this.onPullComplete();
+                                            this.setDataHandler(
+                                                WormholeSocketDefaultDataHandler
+                                            );
+                                            //resolve(true);
+                                        }
                                     };
 
-                                    this.setDataHandler(fetchFileDataHandler);
+                                    let state = {};
+                                    let fetchFileDataHandler = data => {
+                                        this.syncedFolder.appendToFile(
+                                            state.currentFile,
+                                            state.fd,
+                                            data
+                                        );
 
-                                    this.socket.write(
-                                        BSON.serialize({
-                                            messageType:
-                                                MessageType.FETCH_FILE_DATA,
-                                            payload: {
-                                                path: message.payload.path,
-                                            },
-                                        })
-                                    );
+                                        state.currentBlock += 1;
+
+                                        if (state.currentBlock >= state.totalBlocks) {
+                                            this.trace(
+                                                `All blocks recieved for file '${state.currentFile}'.`
+                                                    .green
+                                            );
+                                            this.syncedFolder.closeFile(
+                                                state.currentFile,
+                                                state.fd
+                                            );
+                                            this.syncedFolder.correctModificationTime(
+                                                state.currentFile
+                                            );
+                                            fetchNextFileInfo();
+                                        }
+                                    };
+
+                                    let fetchInfoHandler = data => {
+                                        let message = BSON.deserialize(data);
+
+                                        if (
+                                            message.messageType !==
+                                            MessageType.FETCH_FILE_INFO_RESPONSE
+                                        ) {
+                                            this.trace(
+                                                `Failed fetching file info from ${this.clientName}.`
+                                                    .red
+                                            );
+                                            this.setDataHandler(
+                                                WormholeSocketDefaultDataHandler
+                                            );
+                                        } else {
+                                            this.trace(
+                                                `Recieved file info for '${message.payload.path}' from ${this.clientName}.`
+                                                    .green
+                                            );
+
+                                            this.trace(
+                                                `Fetching file data for '${message.payload.path}' from ${this.clientName}`
+                                                    .cyan
+                                            );
+
+                                            state = {
+                                                currentBlock: 0,
+                                                totalBlocks:
+                                                    message.payload.stats.blockCount,
+                                                currentFile: message.payload.path,
+                                                fd: this.syncedFolder.openFile(
+                                                    message.payload.path,
+                                                    "a"
+                                                ),
+                                            };
+
+                                            this.setDataHandler(fetchFileDataHandler);
+
+                                            this.socket.write(
+                                                BSON.serialize({
+                                                    messageType:
+                                                        MessageType.FETCH_FILE_DATA,
+                                                    payload: {
+                                                        path: message.payload.path,
+                                                    },
+                                                })
+                                            );
+                                        }
+                                    };
+
+                                    fetchNextFileInfo();
                                 }
-                            };
-
-                            fetchNextFileInfo();
-                        }
+                            }
+                        });
                     });
                 }
             });
@@ -462,14 +474,23 @@ class WormholeSocket {
 
     pushFileList() {
         this.trace(`Pushing file list to ${this.clientName}.`.cyan);
+        let message = BSON.serialize({
+            messageType: MessageType.FETCH_FILE_LIST_RESPONSE,
+            payload: {
+                fileList: this.syncedFolder.getFileList(),
+            },
+        });
+
         this.socket.write(
             BSON.serialize({
-                messageType: MessageType.FETCH_FILE_LIST_RESPONSE,
                 payload: {
-                    fileList: this.syncedFolder.getFileList(),
-                },
+                    size: message.byteLength,
+                    blockSize: this.options.blockSize
+                }
             })
         );
+
+        this.socket.write(message);
     }
 
     pushFileInfo(path) {
