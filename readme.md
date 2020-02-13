@@ -16,7 +16,6 @@ After these commands have finished you will be able to run `wormhole` and `wormh
 
 ## Client Usage
 ### Creating a new repository
-***(NOT IMPLEMENTED YET)***  
 Run the following commands inside the folder that you want to turn into a repository:
 ```bash
 wormhole init
