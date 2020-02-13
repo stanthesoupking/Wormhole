@@ -1,19 +1,18 @@
 const fs = require("fs");
+const constants = require("../constants");
 
 const defaultConfig = {
     username: null,
     password: null,
     host: "localhost",
-    port: 8585,
+    port: constants.WORMHOLE_DEFAULT_PORT,
     verbose: false,
     strictSSL: true,
-    syncInterval: 1000,
-    dataDirectory: null
 };
 
 function readConfig(path) {
     // Read config file
-    let userConfig = JSON.parse(fs.readFileSync(path, { encoding: 'utf-8' }));
+    let userConfig = JSON.parse(fs.readFileSync(path, { encoding: "utf-8" }));
 
     // Merge with default config
     let config = {};
@@ -29,5 +28,5 @@ function readConfig(path) {
 }
 
 module.exports = {
-    readConfig
+    readConfig,
 };

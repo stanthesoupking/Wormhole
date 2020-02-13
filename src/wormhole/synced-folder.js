@@ -1,13 +1,14 @@
 const fs = require("fs");
 
 class SyncedFolder {
-    constructor(path) {
+    constructor(path, ignoredFiles = []) {
         this.path = path;
         this.fileList = null;
         this.folderList = null;
+        this.ignoredFiles = ignoredFiles;
 
         if (!fs.existsSync(this.path)) {
-            fs.mkdirSync(this.path);
+            fs.mkdirSync(this.path, { recursive: true });
         }
 
         this.loadInitialData();
@@ -26,15 +27,15 @@ class SyncedFolder {
         for (let file of files) {
             this.fileList[file.path] = {
                 modificationTime: file.stats.mtime,
-                size: file.stats.size
-            }
+                size: file.stats.size,
+            };
         }
     }
 
     listItems(path = null) {
         let list = {
             files: [],
-            folders: []
+            folders: [],
         };
 
         let aPath = this.path;
@@ -51,6 +52,11 @@ class SyncedFolder {
                 relativeFilePath = `${path}/${item.name}`;
             }
 
+            if (this.ignoredFiles.includes(relativeFilePath)) {
+                // Skip this file
+                continue;
+            }
+
             if (item.isDirectory()) {
                 list.folders.push(relativeFilePath);
 
@@ -62,7 +68,7 @@ class SyncedFolder {
 
                 list.files.push({
                     path: relativeFilePath,
-                    stats: fileStats
+                    stats: fileStats,
                 });
             }
         }
@@ -84,19 +90,19 @@ class SyncedFolder {
 
     applyFolderList(newFolderList) {
         // Create missing folders
-        Object.keys(newFolderList).forEach((relativePath) => {
+        Object.keys(newFolderList).forEach(relativePath => {
             if (this.folderList[relativePath] == null) {
                 fs.mkdirSync(this.convertRelativePath(relativePath), {
-                    recursive: true
+                    recursive: true,
                 });
             }
         });
 
         // Delete existing folders
-        Object.keys(this.folderList).forEach((relativePath) => {
+        Object.keys(this.folderList).forEach(relativePath => {
             if (newFolderList[relativePath] == null) {
                 fs.rmdirSync(this.convertRelativePath(relativePath), {
-                    recursive: true
+                    recursive: true,
                 });
             }
         });
@@ -106,7 +112,7 @@ class SyncedFolder {
 
     removeFile(relativePath) {
         if (this.fileList[relativePath]) {
-            fs.unlinkSync(this.convertRelativePath(relativePath))
+            fs.unlinkSync(this.convertRelativePath(relativePath));
             delete this.fileList[relativePath];
         }
     }
@@ -129,7 +135,7 @@ class SyncedFolder {
         if (this.fileList[relativePath] == null) {
             let path = this.convertRelativePath(relativePath);
             fs.writeFileSync(path, "", {
-                flag: "w"
+                flag: "w",
             });
             fs.utimesSync(path, stats.modificationTime, stats.modificationTime);
             this.fileList[relativePath] = stats;
@@ -150,11 +156,15 @@ class SyncedFolder {
 
     correctModificationTime(relativePath) {
         let file = this.getFile(relativePath);
-        
-        fs.utimesSync(this.convertRelativePath(relativePath), file.modificationTime, file.modificationTime);
+
+        fs.utimesSync(
+            this.convertRelativePath(relativePath),
+            file.modificationTime,
+            file.modificationTime
+        );
     }
 }
 
 module.exports = {
-    SyncedFolder
+    SyncedFolder,
 };

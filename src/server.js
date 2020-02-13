@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const { WormholeServer } = require("./wormhole");
 const { readConfig } = require("./wormhole/server/config");
 
@@ -14,7 +16,7 @@ const server = new WormholeServer(config.users, {
     key: config.key,
     cert: config.cert,
     blockSize: config.blockSize,
-    dataDirectory: "./server-data"
+    dataDirectory: "./server-data",
 });
 
 server.listen(config.port, config.host);

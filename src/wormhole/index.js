@@ -3,5 +3,5 @@ const { WormholeClient } = require("./client");
 
 module.exports = {
     WormholeServer,
-    WormholeClient
+    WormholeClient,
 };

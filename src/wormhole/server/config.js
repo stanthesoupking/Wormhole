@@ -7,12 +7,12 @@ const defaultConfig = {
     verbose: false,
     key: "private-key.pem",
     cert: "public-cert.pem",
-    blockSize: 16384
+    blockSize: 16384,
 };
 
 function readConfig(path) {
     // Read config file
-    let userConfig = JSON.parse(fs.readFileSync(path, { encoding: 'utf-8' }));
+    let userConfig = JSON.parse(fs.readFileSync(path, { encoding: "utf-8" }));
 
     // Merge with default config
     let config = {};
@@ -28,5 +28,5 @@ function readConfig(path) {
 }
 
 module.exports = {
-    readConfig
+    readConfig,
 };

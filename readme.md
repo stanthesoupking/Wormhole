@@ -1,33 +1,40 @@
 # Wormhole
 ***WARNING: This project is a work in progress and should not be used with data that you care about. Use at your own risk.***
 
-A simple file syncing solution that allows for files to be synced between computers over a network using basic `push` and `pull` commands.
+A file syncing solution that allows for files to be synced between computers over a network using basic `push` and `pull` commands.
 
-# Getting started
+# Installation
 First make sure that you have Node.js (at least version 12.16) installed and the latest version of Yarn.
 
 Before starting either the client or server you must first run:
 ```bash
 yarn install
+yarn link
 ```
 
-## Client Setup
-Configuration options for the client can be found inside the `client-config.json` file in the project's root directory. Here you can configure the following options:
-* username, password - The credentials used to gain access the server
-* dataDirectory - Directory to sync with the server
-* strictSSL - Should the program not allow connections to unauthorised SSL certificates?
-* verbose - Should the client log actions taking place?
+After these commands have finished you will be able to run `wormhole` and `wormhole-server` from the terminal.
 
-### Starting the Client
+## Client Usage
+### Creating a new repository
+***(NOT IMPLEMENTED YET)***  
+Run the following commands inside the folder that you want to turn into a repository:
 ```bash
-yarn start-client
+wormhole init
+wormhole push
 ```
 
-## Server Setup
+### Pulling an existing repository
+Run the following commands inside an empty folder to pull an existing repository:
+```bash
+wormhole init
+wormhole pull
+```
+
+## Server Usage
 Configuration options for the server can be found inside the `server-config.json` file in the project's root directory. Here you can configure the following options:
 * users - User accounts stored on the server
     - username, password - Credentails for the user account
-    - dataDirectory - Directory to sync with the user
+    - baseDataDirectory - The base directory that user repos will be stored inside.
 * verbose - Should the server log actions taking place?
 * key, cert - Paths to the SSL private key and certificate to be used
 * host, port - The host address and port number that the server should listen for incoming connections on
@@ -40,5 +47,5 @@ Wormhole uses TLS to mitigate man-in-the-middle attacks. You must set the path t
 
 ### Starting the Server
 ```bash
-yarn start-server
+wormhole-server
 ```
