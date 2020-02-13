@@ -51,6 +51,10 @@ class WormholeServer {
     }
 
     onConnect(socket) {
+        socket.on("error", (error) => {
+            this.trace(`Socket Error: ${error.message}.`.red);
+        });
+
         // Start connection as credential receiver socket
         let credSocket = new CredentialReceiverSocket(
             socket,
