@@ -14,6 +14,15 @@ class WormholeRepository {
         return this.settings.name;
     }
 
+    getVersion() {
+        return this.settings.version;
+    }
+
+    setVersion(version) {
+        this.settings.version = version;
+        this.write();
+    }
+
     read() {
         let data = fs.readFileSync(this.pathToDotFile);
         this.settings = JSON.parse(data);
@@ -47,8 +56,12 @@ class WormholeRepository {
                 .connect()
                 .then(async () => {
                     await client.selectRepository(this.getName());
-                    await client.pullFiles();
+                    let version = await client.pullFiles();
                     await client.close();
+
+                    // Update version
+                    this.setVersion(version);
+
                     resolve(true);
                 })
                 .catch(err => {
@@ -78,8 +91,12 @@ class WormholeRepository {
                 .connect()
                 .then(async () => {
                     await client.selectRepository(this.getName());
-                    await client.pushFiles();
+                    await client.pushFiles(this.getVersion());
                     await client.close();
+
+                    // Increment version to match server
+                    this.setVersion(this.getVersion() + 1);
+
                     resolve(true);
                 })
                 .catch(err => {
@@ -88,8 +105,6 @@ class WormholeRepository {
         });
     }
 }
-
-
 
 function openRepository(path = process.cwd()) {
     if (fs.existsSync(path + "/" + REPO_FILE)) {
@@ -102,7 +117,11 @@ function openRepository(path = process.cwd()) {
 }
 
 function createRepository(settings, path = process.cwd()) {
-    let repo = new WormholeRepository(path, settings);
+    let repo = new WormholeRepository(path, {
+        ...settings,
+        lastPush: null,
+        lastPull: null,
+    });
     repo.write();
 }
 

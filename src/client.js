@@ -12,7 +12,7 @@ const {
 const Writable = require("stream").Writable;
 
 const mutableStdout = new Writable({
-    write: function(chunk, encoding, callback) {
+    write: function (chunk, encoding, callback) {
         if (!this.muted) process.stdout.write(chunk, encoding);
         callback();
     },
@@ -106,7 +106,6 @@ function initRepo() {
 
                     createRepository({
                         name: repoName,
-                        version: 1,
                         host: repoHost,
                         port: repoPort,
                         username: repoUsername,
@@ -142,7 +141,7 @@ async function pullRepo() {
     console.log("Pulling from server...".cyan);
     repo.pull(password)
         .then(() => {
-            console.log("Pull complete.".green);
+            console.log("Pull complete, now on version ".green + `${repo.getVersion().toString()}`.yellow + ".".green);
             process.exit(0);
         })
         .catch(error => {
@@ -169,7 +168,7 @@ async function pushRepo() {
     console.log("Pushing to server...".cyan);
     repo.push(password)
         .then(() => {
-            console.log("Push complete.".green);
+            console.log("Push complete, now on version ".green + `${repo.getVersion().toString()}`.yellow + ".".green);
             process.exit(0);
         })
         .catch(error => {

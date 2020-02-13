@@ -2,6 +2,7 @@ const fs = require("fs");
 const BSON = require("bson");
 const { MessageType } = require("./message");
 const { SyncedFolder } = require("./synced-folder");
+const { getRepositoryInfo } = require("./server/repository-info");
 
 function WormholeSocketDefaultDataHandler(data) {
     let message = BSON.deserialize(data);
@@ -24,10 +25,14 @@ function WormholeSocketDefaultDataHandler(data) {
     } else {
         switch (message.messageType) {
             case MessageType.PULL_FINISHED:
-                this.onPushComplete();
+                this.onPushComplete(message.payload.version);
                 break;
             case MessageType.REQUEST_PULL:
-                this.pullFiles();
+                if (message.payload.version < this.repoInfo.getVersion()) {
+                    console.error("Client is out of date and must pull");
+                } else {
+                    this.pullFiles();
+                }
                 break;
             case MessageType.FETCH_FOLDER_LIST:
                 this.pushFolderList();
@@ -60,11 +65,9 @@ class WormholeSocket {
 
         this.selectedRepository = null;
         this.syncedFolder = null;
-        this.onPullComplete = () => { };
-        this.onPushComplete = () => { };
-        // this.syncedFolder = new SyncedFolder(this.options.path, [
-        //     ".wormhole-repo",
-        // ]);
+        this.repoInfo = null;
+        this.onPullComplete = () => {};
+        this.onPushComplete = () => {};
 
         if (this.options.master) {
             this.socket.setMaxSendFragment(this.options.blockSize);
@@ -103,11 +106,14 @@ class WormholeSocket {
                     `Selecting repository '${repositoryName}' from client.`.cyan
                 );
 
+                let repoFolder =
+                    this.user.baseDataDirectory + "/" + repositoryName;
+
                 this.selectedRepository = repositoryName;
-                this.syncedFolder = new SyncedFolder(
-                    this.user.baseDataDirectory + "/" + repositoryName,
-                    [".wormhole-repo"]
-                );
+                this.syncedFolder = new SyncedFolder(repoFolder, [
+                    ".wormhole-repo",
+                ]);
+                this.repoInfo = getRepositoryInfo(repoFolder);
 
                 this.socket.write(
                     BSON.serialize({
@@ -115,6 +121,7 @@ class WormholeSocket {
                         payload: {
                             success: true,
                             name: repositoryName,
+                            version: this.repoInfo.getVersion(),
                         },
                     })
                 );
@@ -138,6 +145,8 @@ class WormholeSocket {
                                         .green
                                 );
                                 this.selectedRepository = repositoryName;
+                                this.selectedRepositoryVersion =
+                                    message.payload.version;
                                 this.syncedFolder = new SyncedFolder(
                                     process.cwd(),
                                     ".wormhole-repo"
@@ -172,14 +181,31 @@ class WormholeSocket {
     pullFiles() {
         return new Promise((resolve, reject) => {
             this.onPullComplete = () => {
-                this.socket.write(BSON.serialize({
-                    messageType: MessageType.PULL_FINISHED
-                }), () => {
-                    resolve(true);
-                });
+                // Increment repo version
+                if (this.options.master) {
+                    this.repoInfo.setVersion(this.repoInfo.getVersion() + 1);
+                }
 
-                this.onPullComplete = () => { };
-            }
+                this.socket.write(
+                    BSON.serialize({
+                        messageType: MessageType.PULL_FINISHED,
+                        payload: {
+                            version: this.options.master
+                                ? this.repoInfo.getVersion()
+                                : null,
+                        },
+                    }),
+                    () => {
+                        resolve(
+                            this.options.master
+                                ? true
+                                : this.selectedRepositoryVersion
+                        );
+                    }
+                );
+
+                this.onPullComplete = () => {};
+            };
 
             this.trace(`Fetching folder list from ${this.clientName}.`.cyan);
             this.socket.write(
@@ -316,7 +342,7 @@ class WormholeSocket {
                                     this.setDataHandler(
                                         WormholeSocketDefaultDataHandler
                                     );
-                                    resolve(true);
+                                    //resolve(true);
                                 }
                             };
 
@@ -404,16 +430,21 @@ class WormholeSocket {
         });
     }
 
-    pushFiles() {
+    pushFiles(currentVersion) {
         return new Promise((resolve, reject) => {
-            this.onPushComplete = () => {
-                this.onPushComplete = () => { };
-                resolve(true);
+            this.onPushComplete = version => {
+                this.onPushComplete = () => {};
+                resolve(version);
             };
 
-            this.socket.write(BSON.serialize({
-                messageType: MessageType.REQUEST_PULL
-            }));
+            this.socket.write(
+                BSON.serialize({
+                    messageType: MessageType.REQUEST_PULL,
+                    payload: {
+                        version: currentVersion,
+                    },
+                })
+            );
         });
     }
 
